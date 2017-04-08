@@ -1,17 +1,17 @@
 from arbuz.base import *
 from session.views import *
+from django.middleware import csrf
 from abc import ABCMeta, abstractmethod
 
 
 class Manager(Dynamic_Base):
 
     def Manage_Init(self):
-        return JsonResponse({})
+        Check_Session(self.request)
+        data = {'csrfmiddlewaretoken': csrf.get_token(self.request)}
+        return JsonResponse(data)
 
     def Manage_Game(self):
-        return JsonResponse({})
-
-    def Manage_Form(self):
         return JsonResponse({})
 
     def Clear_Session(self, key_contain=''):
@@ -37,9 +37,7 @@ class Checker(Dynamic_Base):
     def Check_Authorization(self):
 
         if self.authorization:
-            if self.request.session['user_login']:
-                return True
-            return False
+            return self.request.session['user_login']
 
         return True
 
@@ -100,19 +98,7 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
         return getattr(Dynamic_Event_Manager, self.error_method)(self)
 
     def Manage(self):
-
-        if '__init__' in self.request.POST:
-            return self
-
-        # parts of pages
-        if '__game__' in self.request.POST:
-            return self.Manage_Game()
-
-        # manage forms
-        if '__form__' in self.request.POST:
-            return self.Manage_Form()
-
-        return self.Error_No_Event()
+        return self.Manage_Game()
 
     def Initialize(self):
 
@@ -125,7 +111,7 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
             return self.ERROR_HTML
 
         if self.request.method == 'GET':
-            return HttpResponse('It is not for you')
+            return self.Manage_Init()
 
     def __init__(self, request,
                  autostart=True,
@@ -146,11 +132,11 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
             try:
 
                 self.Timer_Start()
-                self.HTML = self.Initialize()
+                self.JSON = self.Initialize()
                 self.Display_Status()
 
-                if not self.HTML:
-                    self.Display_Status(message='NOT HTML')
+                if not self.JSON:
+                    self.Display_Status(message='NOT REPLY')
 
             except Exception as exception:
 
@@ -160,4 +146,4 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
     @staticmethod
     @abstractmethod
     def Launch(request):
-        return Dynamic_Event_Manager(request)
+        return Dynamic_Event_Manager(request).JSON

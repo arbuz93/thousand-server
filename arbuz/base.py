@@ -23,6 +23,26 @@ class Dynamic_Base:
             if key_contain in key:
                 del self.request.session[key]
 
+    def Get_Urls(self, name=None, kwargs=None):
+
+        if not name:
+            name = resolve(self.request.path_info).url_name
+            kwargs = resolve(self.request.path_info).kwargs
+
+        secure = 'https://' if self.request.is_secure() else 'http://'
+        domain = self.request.get_host()
+
+        return secure + domain + reverse(
+            name, urlconf='arbuz.urls', kwargs=kwargs)
+
+    def Get_Path(self, name=None, kwargs=None):
+
+        if not name:
+            name = resolve(self.request.path_info).url_name
+            kwargs = resolve(self.request.path_info).kwargs
+
+        return reverse(name, urlconf='arbuz.urls', kwargs=kwargs)
+
     @staticmethod
     def Generate_Passwrod(length):
         password = ''
@@ -92,7 +112,7 @@ class Dynamic_Base:
             status += duration + ' ms\n'
 
             status += self.Get_Text_Cell('URL: ', margin=2)
-            status += self.Get_Path(current_language=True) + '\n'
+            status += self.Get_Path() + '\n'
 
             if self.request.POST:
 

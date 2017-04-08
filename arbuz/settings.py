@@ -26,6 +26,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
 
     'arbuz',
+    'init',
     'game',
     'session',
     'user',
