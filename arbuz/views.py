@@ -34,6 +34,9 @@ class Checker(Dynamic_Base):
     def Error_Authorization(self):
         return JsonResponse({'error': 'authorization'})
 
+    def Error_Game_Exists(self):
+        return JsonResponse({'error': 'game_exists'})
+
     def Check_Authorization(self):
 
         if self.authorization:
@@ -41,11 +44,21 @@ class Checker(Dynamic_Base):
 
         return True
 
+    def Check_Game_Exists(self):
+
+        if self.game_exists:
+            if self.request.session['game_pk']:
+                return True
+
+            return False
+        return True
+
     def __init__(self, request):
         Dynamic_Base.__init__(self, request)
 
         self.ERROR_HTML = None
         self.authorization = False
+        self.game_exists = False
 
 
 
@@ -116,6 +129,7 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
     def __init__(self, request,
                  autostart=True,
                  authorization=False,
+                 game_exists=False,
                  error_method=None,
                  other_value={}):
 
@@ -124,8 +138,10 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
         Updater.__init__(self, request)
 
         self.authorization = authorization
+        self.game_exists = game_exists
         self.error_method = error_method
         self.other_value = other_value
+        self.reply = {}
 
         if autostart:
 

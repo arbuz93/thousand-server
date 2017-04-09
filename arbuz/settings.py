@@ -30,6 +30,7 @@ INSTALLED_APPS = (
     'game',
     'session',
     'user',
+    'logic',
 
 )
 

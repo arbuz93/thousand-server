@@ -1,23 +1,15 @@
-from user.models import *
+from logic.models import *
 
 
 class Game(Abstract_Model):
 
     users = models.ManyToManyField(User)
+    start_user = models.ForeignKey(User, related_name='start')
+    current_user = models.ForeignKey(User, related_name='current')
+    matchs = models.ManyToManyField(Match)
 
     def __str__(self):
         return str(self.pk)
-
-
-
-class Score(Abstract_Model):
-
-    score = models.IntegerField()
-    game = models.ForeignKey(Game)
-    user = models.ForeignKey(User)
-
-    def __str__(self):
-        return self.user
 
 
 
