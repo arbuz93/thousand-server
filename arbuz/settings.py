@@ -31,7 +31,8 @@ INSTALLED_APPS = (
     'session',
     'user',
     'logic',
-
+    'status',
+    'chat',
 )
 
 MIDDLEWARE_CLASSES = [

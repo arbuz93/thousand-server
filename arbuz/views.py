@@ -1,5 +1,7 @@
 from arbuz.base import *
 from session.views import *
+from game.models import *
+
 from django.middleware import csrf
 from abc import ABCMeta, abstractmethod
 
@@ -37,6 +39,9 @@ class Checker(Dynamic_Base):
     def Error_Game_Exists(self):
         return JsonResponse({'error': 'game_exists'})
 
+    def Error_Validate_User(self):
+        return JsonResponse({'error': 'validate_user'})
+
     def Check_Authorization(self):
 
         if self.authorization:
@@ -53,11 +58,25 @@ class Checker(Dynamic_Base):
             return False
         return True
 
+    def Check_Validate_User(self):
+
+        if self.validate_user:
+            user = User.objects.get(username=self.request.session['user_username'])
+            game = Game.objects.get(pk=self.request.session['game_pk'])
+
+            # only current user can bidding now
+            if not user == game.current_user:
+                return False
+
+            return True
+        return True
+
     def __init__(self, request):
         Dynamic_Base.__init__(self, request)
 
         self.ERROR_HTML = None
         self.authorization = False
+        self.validate_user = False
         self.game_exists = False
 
 
@@ -129,6 +148,7 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
     def __init__(self, request,
                  autostart=True,
                  authorization=False,
+                 validate_user=False,
                  game_exists=False,
                  error_method=None,
                  other_value={}):
@@ -138,10 +158,12 @@ class Dynamic_Event_Manager(Manager, Checker, Updater, metaclass=ABCMeta):
         Updater.__init__(self, request)
 
         self.authorization = authorization
+        self.validate_user = validate_user
         self.game_exists = game_exists
         self.error_method = error_method
         self.other_value = other_value
         self.reply = {}
+        self.variable = {}
 
         if autostart:
 

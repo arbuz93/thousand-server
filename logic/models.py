@@ -16,7 +16,7 @@ class Rank(Abstract_Model):
     points = models.IntegerField()
 
     def __str__(self):
-        return self.rank
+        return self.name
 
 
 
@@ -26,7 +26,7 @@ class Card(Abstract_Model):
     rank = models.ForeignKey(Rank)
 
     def __str__(self):
-        return self.color + self.rank
+        return self.color.name + ' ' + self.rank.name
 
 
 
@@ -40,16 +40,6 @@ class Assigned_Cards(Abstract_Model):
 
 
 
-class Bidding(Abstract_Model):
-
-    points = models.IntegerField()
-    user = models.ForeignKey(User)
-
-    def __str__(self):
-        return self.points
-
-
-
 class Score(Abstract_Model):
 
     score = models.IntegerField()
@@ -60,11 +50,20 @@ class Score(Abstract_Model):
 
 
 
+class Bidding(Abstract_Model):
+
+    points = models.IntegerField()
+    user = models.ForeignKey(User)
+
+    def __str__(self):
+        return self.points
+
+
+
 class Match(Abstract_Model):
 
-    stock = models.ManyToManyField(Card)
     scores = models.ManyToManyField(Score)
-    bidding = models.ForeignKey(Bidding)
+    biddings = models.ManyToManyField(Bidding)
 
     def __str__(self):
         return 'match: ' + str(self.pk)

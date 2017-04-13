@@ -30,6 +30,25 @@ class Sign_In(Dynamic_Event_Manager):
 
 
 
+class Sign_Out(Dynamic_Event_Manager):
+
+    def Manage_Game(self):
+
+        username = self.request.session['user_username']
+        user = User.objects.get(username=username)
+
+        self.request.session['user_login'] = False
+        user.online = False
+        user.save()
+
+        return JsonResponse({'status': False})
+
+    @staticmethod
+    def Launch(request):
+        return Sign_Out(request).JSON
+
+
+
 class Sign_Up(Dynamic_Event_Manager):
 
     def Manage_Game(self):
