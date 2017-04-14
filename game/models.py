@@ -5,7 +5,7 @@ class Game(Abstract_Model):
 
     users = models.ManyToManyField(User)
     start_user = models.ForeignKey(User, related_name='start')
-    current_user = models.ForeignKey(User, related_name='current')
+    current_user = models.ForeignKey(User, related_name='current', blank=True, null=True)
     matchs = models.ManyToManyField(Match)
     is_bidding = models.BooleanField(default=True)
     is_dealing = models.BooleanField(default=False)

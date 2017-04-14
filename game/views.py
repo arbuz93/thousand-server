@@ -32,13 +32,14 @@ class Create_Game(Dynamic_Event_Manager):
         user_2 = self.request.POST['user_2']
 
         start_user = User.objects.get(username=user_0)
-        next_user = User.objects.get(username=user_1)
-        game = Game(start_user=start_user, current_user=next_user)
+        game = Game(start_user=start_user)
 
         game.save()
         game.users.add(User.objects.get(username=user_0))
         game.users.add(User.objects.get(username=user_1))
         game.users.add(User.objects.get(username=user_2))
+        game.current_user = game.Get_Next_User(start_user)
+        game.save()
 
         self.request.session['game_pk'] = game.pk
         Logic.Dealing_Cards(game.pk)
@@ -190,7 +191,7 @@ class Bidding_Manager(Dynamic_Event_Manager):
             # find next user
             next_user = self.Find_Next_User(game, last_match)
             if not next_user:
-                self.Finish_Bidding()
+                self.Manage_Finish_Bidding()
                 return JsonResponse({'status': 0})
 
             game.current_user = next_user
@@ -295,14 +296,15 @@ class Throw_Card(Dynamic_Event_Manager):
 
     def Manage_Game(self):
 
+        if '__clear__' in self.request.POST:
+            if not self.Validate():
+                return self.Manage_Clear_Stock()
+
+        self.validate_user = True
         if '__throw__' in self.request.POST:
             if self.Validate():
                 if self.Check_Validate_User():
                     return self.Manage_Throw_Card()
-
-        if '__clear__' in self.request.POST:
-            if not self.Validate():
-                return self.Manage_Clear_Stock()
 
         return JsonResponse({'error': 'not valid'})
 

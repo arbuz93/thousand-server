@@ -27,7 +27,7 @@ class Dealing_Cards(Dynamic_Base):
     @staticmethod
     def Create_Match(game, cards, users):
 
-        bidding = Bidding(points=100, user=users[0])
+        bidding = Bidding(points=100, user=game.start_user)
         bidding.save()
 
         match = Match()
@@ -50,6 +50,8 @@ class Dealing_Cards(Dynamic_Base):
         # adding first match to game
         match.biddings.add(bidding)
         game.matchs.add(match)
+        game.is_bidding = True
+        game.save()
 
     @staticmethod
     def Dealing_Cards(game_pk):
@@ -126,19 +128,49 @@ class Point_Counter(Dynamic_Base):
         score.save()
 
     @staticmethod
-    def Counting_Points(game_pk):
+    def Check_If_Match_Is_Over(winner, game):
 
-        game = Game.objects.get(pk=game_pk)
-        stock = Stock_Card.objects.filter(game=game)
-        first_card = stock.get(is_first=True)
+        assigned = Assigned_Cards.objects.get(user=winner.user)
+        if assigned.cards.count() == 0: # match is over
 
-        print(first_card)
+            # new dealing
+            game.start_user = game.Get_Next_User(game.start_user)
+            game.current_user = game.Get_Next_User(game.start_user)
+            game.save()
+
+            Logic.Dealing_Cards(game.pk)
+
+    @staticmethod
+    def Get_Stock_Winner(stock, first_card):
 
         # search winner in first card color
         max_points = stock.aggregate(models.Max('card__rank__points'))
         max_points = max_points['card__rank__points__max']
-        winner = stock.get(card__rank__points=max_points,
-                           card__color=first_card.card.color)
+        winner = stock.filter(card__rank__points=max_points,
+                              card__color=first_card.card.color)
+
+        # if all cards is another colors
+        if not winner:
+            return first_card
+
+        else: return winner[0]
+
+    @staticmethod
+    def Counting_Points(game_pk):
+
+        game = Game.objects.get(pk=game_pk)
+        stock = Stock_Card.objects.filter(game=game)
+        first_card = stock.filter(is_first=True)
+
+        # if stock is empty
+        if not first_card:
+            return
+
+        else: first_card = first_card[0]
+
+        # search winner
+        winner = Point_Counter.Get_Stock_Winner(
+            stock, first_card)
 
         # winner is current user
         game.current_user = winner.user
@@ -147,6 +179,9 @@ class Point_Counter(Dynamic_Base):
         # save points for winner
         Point_Counter.Save_Points(winner, stock, game.matchs.last())
         stock.delete()
+
+        # check if match is over
+        Point_Counter.Check_If_Match_Is_Over(winner, game)
 
 
 
