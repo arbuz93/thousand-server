@@ -64,7 +64,8 @@ class Sign_Up(Dynamic_Event_Manager):
             User(
                 username=username,
                 password=self.Encrypt(password),
-                online=False
+                online=False,
+                in_game=False
             ).save()
 
             return JsonResponse({'status': True})
@@ -79,10 +80,12 @@ class Sign_Up(Dynamic_Event_Manager):
 class Get_Online_Users(Dynamic_Event_Manager):
 
     def Manage_Game(self):
-        users = User.objects.filter(online=True).values('username')
+        users = User.objects.filter(online=True, in_game=False)\
+            .values('username')
+
         return JsonResponse({'users': list(users)})
 
     @staticmethod
     def Launch(request):
-        return Get_Online_Users(request, authorization=True).JSON
+        return Get_Online_Users(request).JSON
 

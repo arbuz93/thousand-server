@@ -5,7 +5,12 @@ class Check_Status_Game(Dynamic_Event_Manager):
 
     def Join_To_Game(self):
         username = self.request.session['user_username']
+        user = User.objects.get(username=username)
         self.reply['join'] = False
+
+        if not user.in_game:
+            self.request.session['game_pk'] = None
+            return 
 
         if Game.objects.filter(users__username=username):
             self.request.session['game_pk'] = Game.objects.filter(
@@ -41,14 +46,19 @@ class Check_Status_Game(Dynamic_Event_Manager):
         stock = game.Get_Stock_Card()\
             .values('color__name', 'rank__name')
 
-        if game.is_bidding:
+        # when bid and bidding two or a lot of players
+        next_user = Logic.Find_Next_User(game, game.matchs.last())
+        if game.is_bidding and next_user:
             return
 
         self.reply['stock'] = list(stock)
 
     def Status_Bidding(self):
+
         game = self.variable['game']
+        next_user = Logic.Find_Next_User(game, game.matchs.last())
         self.reply['is_bidding'] = game.is_bidding
+        self.reply['is_dealing'] = game.is_dealing
 
         if game.is_bidding:
 
@@ -58,9 +68,10 @@ class Check_Status_Game(Dynamic_Event_Manager):
             self.reply['biddings'] = \
                 Bidding_Manager.Get_Biddings(game)
 
-        if game.is_dealing:
+        # winner is when bidding is done or next user doesn't exist
+        if game.is_dealing or not next_user:
 
-            win_bidding = Bidding_Manager.Get_Win_Bidding(game)
+            win_bidding = Logic.Get_Win_Bidding(game)
             self.reply['win_bidding'] = {
                 'user':     win_bidding.user.username,
                 'points':   win_bidding.points
@@ -74,6 +85,20 @@ class Check_Status_Game(Dynamic_Event_Manager):
         self.reply['users_status'] = \
             list(self.variable['match'].scores.all()\
                 .values('user__username', 'score'))
+
+    def Status_Is_Marriage(self):
+
+        if self.variable['game'].marriage_color:
+            self.reply['marriage_color'] =  \
+                self.variable['game'].marriage_color.name
+
+    def Status_Scores(self):
+
+        scores = self.variable['game'].matchs.all()\
+            .values('scores__user__username', 'scores__score',
+                    'bidded_user', 'is_boom')
+
+        self.reply['scores'] = list(scores)
 
     def Manage_Game(self):
 

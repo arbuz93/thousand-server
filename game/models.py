@@ -9,6 +9,7 @@ class Game(Abstract_Model):
     matchs = models.ManyToManyField(Match)
     is_bidding = models.BooleanField(default=True)
     is_dealing = models.BooleanField(default=False)
+    marriage_color = models.ForeignKey(Color, default=None, null=True)
 
     def Get_Next_User(self, user=None):
 
@@ -45,3 +46,4 @@ class Stock_Card(Abstract_Model):
 
     def __str__(self):
         return str(self.pk)
+

@@ -27,18 +27,32 @@ class Create_Game(Dynamic_Event_Manager):
     def Manage_Game(self):
         Finish_Game.Finish_Last_Games(self.request)
 
+        # get users
         user_0 = self.request.session['user_username']
         user_1 = self.request.POST['user_1']
         user_2 = self.request.POST['user_2']
 
-        start_user = User.objects.get(username=user_0)
-        game = Game(start_user=start_user)
+        user_0 = User.objects.get(username=user_0)
+        user_1 = User.objects.get(username=user_1)
+        user_2 = User.objects.get(username=user_2)
+
+        # users join to game
+        user_0.in_game = True
+        user_1.in_game = True
+        user_2.in_game = True
+
+        user_0.save()
+        user_1.save()
+        user_2.save()
+
+        # create game
+        game = Game(start_user=user_0)
 
         game.save()
         game.users.add(User.objects.get(username=user_0))
         game.users.add(User.objects.get(username=user_1))
         game.users.add(User.objects.get(username=user_2))
-        game.current_user = game.Get_Next_User(start_user)
+        game.current_user = game.Get_Next_User(user_0)
         game.save()
 
         self.request.session['game_pk'] = game.pk
@@ -63,8 +77,18 @@ class Finish_Game(Dynamic_Event_Manager):
 
     @staticmethod
     def Finish_Last_Games(request):
-        username = request.session['user_username']
-        Game.objects.filter(users__username=username).delete()
+
+        if not request.session['game_pk']:
+            return
+
+        game = Game.objects.get(pk=request.session['game_pk'])
+        request.session['game_pk'] = None
+
+        for user in game.users.all():
+            user.in_game = False
+            user.save()
+
+        game.delete()
 
     def Manage_Game(self):
         self.Finish_Last_Games(self.request)
@@ -72,7 +96,7 @@ class Finish_Game(Dynamic_Event_Manager):
 
     @staticmethod
     def Launch(request):
-        return Create_Game(request, authorization=True, game_exists=True).JSON
+        return Finish_Game(request, authorization=True, game_exists=True).JSON
 
 
 
@@ -84,27 +108,6 @@ class Bidding_Manager(Dynamic_Event_Manager):
             .values('points', 'user')
 
         return list(biddings)
-
-    @staticmethod
-    def Find_Next_User(game, match):
-
-        next_user = game.Get_Next_User()
-        if not match.biddings.filter(user=next_user, points=0):
-            return next_user
-
-        next_user = game.Get_Next_User(next_user)
-        if not match.biddings.filter(user=next_user, points=0):
-            return next_user
-
-        return None
-
-    @staticmethod
-    def Get_Win_Bidding(game):
-        last_match = game.matchs.last()
-        max_points = last_match.biddings.all() \
-            .aggregate(models.Max('points'))['points__max']
-
-        return last_match.biddings.get(points=max_points)
 
     def Manage_Dealing_Stock_Cards(self):
 
@@ -154,12 +157,12 @@ class Bidding_Manager(Dynamic_Event_Manager):
 
         return JsonResponse({'status': True})
 
-    def Manage_Win_Bidding_Cards(self):
+    def Manage_Get_Bidding_Cards(self):
 
         # variable
         pk = self.request.session['game_pk']
         game = Game.objects.get(pk=pk)
-        user = self.Get_Win_Bidding(game).user
+        user = Logic.Get_Win_Bidding(game).user
 
         # get cards
         stock_cards = game.Get_Stock_Card()\
@@ -179,8 +182,19 @@ class Bidding_Manager(Dynamic_Event_Manager):
         last_match = game.matchs.last()
         points = int(self.request.POST['points'])
 
+        # check points are round to tens
+        if points % 10 != 0:
+            return JsonResponse({'status': 5}) # not round to tens
+
+        # check if user may to win the points
+        username = self.request.session['user_username']
+        user = User.objects.get(username=username)
+        user_max_points = Logic.Count_User_Max_Points(user, game)
+        if points > user_max_points:
+            return JsonResponse({'status': 4}) # too big
+
         # get points are greater than last bidding or user passing
-        max_points = self.Get_Win_Bidding(game).points
+        max_points = Logic.Get_Win_Bidding(game).points
 
         if points > max_points or points == 0:
             bidding = Bidding(points=points, user=game.current_user)
@@ -189,7 +203,7 @@ class Bidding_Manager(Dynamic_Event_Manager):
             last_match.biddings.add(bidding)
 
             # find next user
-            next_user = self.Find_Next_User(game, last_match)
+            next_user = Logic.Find_Next_User(game, last_match)
             if not next_user:
                 self.Manage_Finish_Bidding()
                 return JsonResponse({'status': 0})
@@ -203,17 +217,51 @@ class Bidding_Manager(Dynamic_Event_Manager):
     def Manage_Finish_Bidding(self):
 
         game = Game.objects.get(pk=self.request.session['game_pk'])
+        user = User.objects.get(username=self.request.session['user_username'])
         match = game.matchs.last()
 
-        if not self.Find_Next_User(game, match):
+        if not Logic.Find_Next_User(game, match):
 
             # bidding over
             game.is_bidding = False
             game.is_dealing = True
             game.save()
+
+            match.bidded_user = user
+            match.save()
+
             return JsonResponse({'status': 0})
 
         return JsonResponse({'status': 1}) # not your turn
+
+    def Manage_Dealing_Boom(self):
+
+        game = Game.objects.get(pk=self.request.session['game_pk'])
+        match = game.matchs.last()
+
+        username = self.request.session['user_username']
+        user = User.objects.get(username=username)
+
+        # user threw boombs
+        if not Logic.Check_User_Boom(game, user):
+            return JsonResponse({'status': False})
+
+        Logic.Dealing_Boom_Points(game, user)
+        Stock_Card.objects.filter(game=game).delete()
+
+        # save information about boom
+        match.is_boom = True
+        match.bidded_user = user
+        match.save()
+
+        # new dealing
+        game.start_user = game.Get_Next_User(game.start_user)
+        game.current_user = game.Get_Next_User(game.start_user)
+        game.marriage_color = None
+        game.save()
+
+        Logic.Dealing_Cards(game.pk)
+        return JsonResponse({'status': True})
 
     def Manage_Game(self):
 
@@ -225,11 +273,14 @@ class Bidding_Manager(Dynamic_Event_Manager):
         if '__finish__' in self.request.POST:
             return self.Manage_Finish_Bidding()
 
-        if '__win__' in self.request.POST:
-            return self.Manage_Win_Bidding_Cards()
+        if '__win__' in self.request.POST: # for winner
+            return self.Manage_Get_Bidding_Cards()
 
         if '__dealing__' in self.request.POST:
             return self.Manage_Dealing_Stock_Cards()
+
+        if '__boom__' in self.request.POST:
+            return self.Manage_Dealing_Boom()
 
         if '__add__' in self.request.POST:
             try: return self.Manage_Add_Bidding()
@@ -275,8 +326,12 @@ class Throw_Card(Dynamic_Event_Manager):
         game = Game.objects.get(pk=self.request.session['game_pk'])
 
         # check if card maybe throw to stock
-        if not Logic.Check_Adding_Stock_Card(game, card, user):
+        if not Logic.Check_Throw_Card(game, card, user):
             return JsonResponse({'status': False})
+
+        # check if call marriage now
+        if Logic.Check_If_Marriage(game, card, user):
+            Logic.Do_Marriage(game, card, user)
 
         # remove card
         assigned.cards.remove(card)

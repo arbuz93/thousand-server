@@ -64,6 +64,8 @@ class Match(Abstract_Model):
 
     scores = models.ManyToManyField(Score)
     biddings = models.ManyToManyField(Bidding)
+    bidded_user = models.ForeignKey(User, blank=True, null=True)
+    is_boom = models.BooleanField(default=False)
 
     def __str__(self):
         return 'match: ' + str(self.pk)
