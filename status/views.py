@@ -10,7 +10,7 @@ class Check_Status_Game(Dynamic_Event_Manager):
 
         if not user.in_game:
             self.request.session['game_pk'] = None
-            return 
+            return
 
         if Game.objects.filter(users__username=username):
             self.request.session['game_pk'] = Game.objects.filter(
@@ -99,6 +99,14 @@ class Check_Status_Game(Dynamic_Event_Manager):
                     'bidded_user', 'is_boom')
 
         self.reply['scores'] = list(scores)
+
+    def Status_Game_Over(self):
+        self.reply['game_over'] = False
+
+        if self.variable['game'].is_over:
+            self.reply['game_over'] = True
+            self.reply['winner'] = self.variable['game']\
+                .winner.username
 
     def Manage_Game(self):
 

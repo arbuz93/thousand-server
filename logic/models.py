@@ -46,7 +46,7 @@ class Score(Abstract_Model):
     user = models.ForeignKey(User)
 
     def __str__(self):
-        return self.user
+        return str(self.score)
 
 
 

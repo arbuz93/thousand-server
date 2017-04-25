@@ -9,6 +9,8 @@ class Game(Abstract_Model):
     matchs = models.ManyToManyField(Match)
     is_bidding = models.BooleanField(default=True)
     is_dealing = models.BooleanField(default=False)
+    is_over = models.BooleanField(default=False)
+    winner = models.ForeignKey(User, related_name='winner', blank=True, null=True)
     marriage_color = models.ForeignKey(Color, default=None, null=True)
 
     def Get_Next_User(self, user=None):

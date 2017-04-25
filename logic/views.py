@@ -90,8 +90,8 @@ class Dealing_Cards(Dynamic_Base):
 
     @staticmethod
     def Get_All_User_Scores(game, user):
-        match = game.matchs.last()
-        scores = match.scores.filter(user=user)
+        matchs = game.matchs.all().values('scores__pk')
+        scores = Score.objects.filter(user=user, pk__in=matchs)
 
         points = 0
         for score in scores:
@@ -309,6 +309,11 @@ class Point_Counter(Dynamic_Base):
                     if user_cards.cards.filter(color=game.marriage_color):
                         return False
 
+        # card have another color but user have the color
+        if biggest_card.card.color != card.color:
+            if color_cards.count():
+                return False
+
         # good
         return True
 
@@ -339,8 +344,23 @@ class Point_Counter(Dynamic_Base):
         # round scores
         scores = game.matchs.last().scores.all()
         for score in scores:
-            score.score = round(score.score, -1)
+
+            # user have 800 points and is not bidded user
+            if Logic.Get_All_User_Scores(game, score.user) >= 800:
+                if bidded_user.user != score.user:
+                    score.score = 0
+
+            else: score.score = round(score.score, -1)
             score.save()
+
+    @staticmethod
+    def Check_If_Game_Is_Over(game):
+
+        for user in game.users.all():
+            if Logic.Get_All_User_Scores(game, user) >= 1000:
+                game.is_over = True # game over
+                game.winner = user
+                game.save()
 
     @staticmethod
     def Check_If_Match_Is_Over(winner, game):
@@ -357,6 +377,7 @@ class Point_Counter(Dynamic_Base):
             game.marriage_color = None
             game.save()
 
+            Logic.Check_If_Game_Is_Over(game)
             Logic.Dealing_Cards(game.pk)
 
     @staticmethod
